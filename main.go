@@ -1,25 +1,52 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
 
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello World"))
+type Trans struct {
+	Name  string `json:"name"`
+	Price string `json:"price"`
 }
 
-func headers(w http.ResponseWriter, r *http.Request) {
-	for name, header := range r.Header {
-		fmt.Println(name, header)
-		w.Write([]byte(fmt.Sprintf("%s, %s", name, header)))
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, fmt.Sprintf("Hello From Server \n"))
+}
+func payHandler(w http.ResponseWriter, r *http.Request) {
+
+	var trans Trans
+	if r.Method != http.MethodPost {
+		fmt.Fprint(w, "Wrong Method Type \n")
+		return
 	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Error Reading Request Body \n", http.StatusInternalServerError)
+		return
+	}
+
+	err = json.Unmarshal(body, &trans)
+	if err != nil {
+		fmt.Println("Error Unmarshaling Body ")
+		http.Error(w, "Error Unmarshaling Body \n", http.StatusInternalServerError)
+		return
+	}
+
+	defer r.Body.Close()
+	fmt.Println(trans)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Data Recieved"))
+
 }
 
 func main() {
 	http.HandleFunc("/", handleIndex)
-	http.HandleFunc("/headers", headers)
+	http.HandleFunc("/pay", payHandler)
 	fmt.Println("Server Listening on Port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
